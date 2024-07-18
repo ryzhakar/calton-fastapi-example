@@ -49,3 +49,8 @@ class PaginationOptions(BaseModel):
     """A skip/limit pagination configuration."""
     skip: Annotated[int, Field(ge=0)] = 0
     limit: Annotated[int, Field(ge=1)] = 10
+
+
+class MultipleReviewsResponse(BaseModel):
+    """An extensible container for reviews."""
+    reviews: list[Review]
