@@ -8,13 +8,13 @@ from app.interface import enums
 from app.interface.schemas import PaginationOptions
 from app.interface.schemas import Review
 
-logger = getLogger(__name__)
+logger = getLogger('app')
 
 
-class XLSXDatasource:
-    """An xlsx-file parser and reader singleton."""
+class MemoryXLSXDatasource:
+    """An in-memory xlsx-file parser and reader singleton."""
 
-    _sorted_review_data: tuple[Review, ...]
+    _sorted_review_data: list[Review]
     _datasource_length: int
 
     # We can afford to couple this particular class to an example file,
@@ -28,16 +28,22 @@ class XLSXDatasource:
         for _, row in dataframe.iterrows():
             try:
                 review = Review(
-                    created_at=row[0],
-                    reviewer_name=str(row[1]),
-                    rating=Decimal(str(row[4])).quantize(Decimal('0.1')),
-                    sentiment=enums.SentimentEnum(
-                        int(row[3]),
-                    ) if pd.notna(row[3]) else None,
-                    review_text=str(row[2]) if pd.notna(row[2]) else None,
+                    created_at=row.iloc[0],
+                    reviewer_name=str(row.iloc[1]),
+                    rating=Decimal(str(row.iloc[4])).quantize(Decimal('0.1')),
+                    sentiment=(
+                        enums.SentimentEnum(int(row.iloc[3]))
+                        if pd.notna(row.iloc[3])
+                        else None
+                    ),
+                    review_text=(
+                        str(row.iloc[2])
+                        if pd.notna(row.iloc[2])
+                        else None
+                    ),
                 )
             except (pydantic.ValidationError, ValueError, TypeError) as error:
-                logger.error(
+                logger.debug(
                     'Failed to parse row % in %: %',
                     row,
                     xlsx_file_path,
@@ -45,26 +51,40 @@ class XLSXDatasource:
                 )
                 continue
             reviews.append(review)
-        cls._sorted_review_data = tuple(
-            sorted(
-                reviews,
-                key=lambda rv: rv.created_at,
-                reverse=True,
-            ),
-        )
+        cls._sorted_review_data = _sort_by_time(reviews)
         cls._datasource_length = len(reviews)
 
-    def list_multiple_with(
+    def list_multiple_reviews_with(
         self,
         pagination: PaginationOptions,
-    ) -> tuple[Review, ...]:
+    ) -> list[Review]:
         """Return a slice of the reviews."""
         if not self._sorted_review_data:
-            return ()
+            return []
         if pagination.skip >= self._datasource_length:
-            return ()
+            return []
         last_index = min(
             self._datasource_length,
             pagination.skip + pagination.limit,
         )
         return self._sorted_review_data[pagination.skip:last_index]
+
+    def add_reviews(self, *new_reviews: Review) -> None:
+        """Extend the review list and resort it.
+
+        This implementation offers no persistance.
+        """
+        self._sorted_review_data = _sort_by_time(
+            self._sorted_review_data + list(new_reviews),
+        )
+
+
+def _sort_by_time(
+    multiple_reviews: list[Review],
+    reverse: bool = True,
+) -> list[Review]:
+    return sorted(
+        multiple_reviews,
+        key=lambda rv: rv.created_at,
+        reverse=reverse,
+    )
