@@ -6,5 +6,5 @@ from enum import IntEnum
 class SentimentEnum(IntEnum):
     """Int-based enumeration of text sentiments."""
     positive = 1
-    negative = 0
-    neutral = -1
+    neutral = 0
+    negative = -1

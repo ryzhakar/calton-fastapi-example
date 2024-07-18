@@ -24,7 +24,7 @@ def fetch_reviews(
 @router.post('/')
 def add_review(
     datasource: Annotated[MemoryXLSXDatasource, Depends()],
-    review_body: schemas.Review,
+    review_body: schemas.ReviewCreationBody,
 ) -> Response:
     """Add a review to the datasource."""
     datasource.add_reviews(review_body)
