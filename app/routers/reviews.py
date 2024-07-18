@@ -16,7 +16,7 @@ def fetch_reviews(
     pagination: Annotated[schemas.PaginationOptions, Depends()],
     datasource: Annotated[MemoryXLSXDatasource, Depends()],
 ) -> schemas.MultipleReviewsResponse:
-    """Return a slice of the reviews."""
+    """Return a page of reviews from the datasource."""
     reviews = datasource.list_multiple_reviews_with(pagination)
     return schemas.MultipleReviewsResponse(reviews=reviews)
 
