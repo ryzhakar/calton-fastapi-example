@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import datetime
 from decimal import Decimal
 from typing import Annotated
 
@@ -30,7 +30,7 @@ _constrained_reviewer_name = Field(
 
 class Review(BaseModel):
     """User-generated review of a product."""
-    created_date: date
+    created_at: datetime
     reviewer_name: Annotated[str, _constrained_reviewer_name]
     rating: Annotated[Decimal, _constrained_review_decimal]
     # These optional fields should always be paired
@@ -47,5 +47,5 @@ class Review(BaseModel):
 
 class PaginationOptions(BaseModel):
     """A skip/limit pagination configuration."""
-    skip: Annotated[int, Field(ge=1)] | None = None
-    limit: Annotated[int, Field(ge=1)] | None = None
+    skip: Annotated[int, Field(ge=0)] = 0
+    limit: Annotated[int, Field(ge=1)] = 10

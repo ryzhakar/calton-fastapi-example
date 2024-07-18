@@ -9,6 +9,8 @@ readme = "README.md"
 python = "^3.10"
 fastapi = "^0.111.1"
 pydantic = {extras = ["settings"], version = "^2.8.2"}
+pandas = "^2.2.2"
+openpyxl = "^3.1.5"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -16,6 +18,7 @@ wemake-python-styleguide = "^0.19.2"
 flake8 = "^7.1.0"
 mypy = "^1.10.1"
 devtools = "^0.12.2"
+pandas-stubs = "^2.2.2.240603"
 
 [build-system]
 requires = ["poetry-core"]
