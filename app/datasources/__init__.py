@@ -1,1 +1,2 @@
+from app.datasources.justeat_datasource import JustEatDataSource
 from app.datasources.xlsx_datasource import MemoryXLSXDatasource

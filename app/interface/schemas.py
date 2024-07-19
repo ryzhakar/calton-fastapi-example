@@ -41,20 +41,14 @@ _sentiment_enum_field = Field(
 
 
 class Review(BaseModel):
-    """User-generated review of a product."""
+    """A user-generated review object with validation."""
     created_at: datetime = Field()
     reviewer_name: Annotated[str, _constrained_reviewer_name]
     rating: Annotated[Decimal, _constrained_review_decimal]
-    # These optional fields should always be paired
+    # These optional fields should be validated downstream
+    # to only receive both or neither.
     sentiment: Annotated[SentimentEnum, _sentiment_enum_field] | None = None
     review_text: Annotated[str, _contrained_review_text] | None = None
-
-    @model_validator(mode='after')
-    def review_text_has_sentiment(self) -> Self:
-        """Check that there's either both text and sentiment or neither."""
-        if (self.review_text is None) == (self.sentiment is None):
-            return self
-        raise ValueError('Both review_text and sentiment must be set or unset.')
 
     @field_validator('created_at')
     @classmethod
@@ -107,6 +101,13 @@ class ReviewCreationBody(Review):
             ],
         },
     )
+
+    @model_validator(mode='after')
+    def review_text_has_sentiment(self) -> Self:
+        """Check that there's either both text and sentiment or neither."""
+        if (self.review_text is None) == (self.sentiment is None):
+            return self
+        raise ValueError('Both review_text and sentiment must be set or unset.')
 
 
 class PaginationOptions(BaseModel):
