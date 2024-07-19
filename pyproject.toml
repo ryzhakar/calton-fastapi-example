@@ -8,11 +8,12 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.10"
 fastapi = "^0.111.1"
-pydantic = {extras = ["settings"], version = "^2.8.2"}
+pydantic = "^2"
 pandas = "^2.2.2"
 openpyxl = "^3.1.5"
-pydantic-settings = "^2.3.4"
+pydantic-settings = "^2"
 colorlog = "^6.8.2"
+selenium = "^4.23.0"
 
 
 [tool.poetry.group.dev.dependencies]
