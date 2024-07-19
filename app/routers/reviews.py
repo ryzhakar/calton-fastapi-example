@@ -12,7 +12,7 @@ _CREATED_STATUS_CODE = 201
 
 
 @router.get('/', response_model=schemas.MultipleReviewsResponse)
-def fetch_reviews(
+async def fetch_reviews(
     pagination: Annotated[schemas.PaginationOptions, Depends()],
     datasource: Annotated[MemoryXLSXDatasource, Depends()],
 ) -> schemas.MultipleReviewsResponse:
@@ -22,7 +22,7 @@ def fetch_reviews(
 
 
 @router.post('/')
-def add_review(
+async def add_review(
     datasource: Annotated[MemoryXLSXDatasource, Depends()],
     review_body: schemas.ReviewCreationBody,
 ) -> Response:
