@@ -299,6 +299,8 @@ class JustEatDataSource:
 
     def _setup_options(self):
         options = uc.ChromeOptions()
+        options.add_argument('--headless')
+        options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
         return options
 
