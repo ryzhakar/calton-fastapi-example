@@ -1,6 +1,7 @@
 annotated-types==0.7.0 ; python_version >= "3.10" and python_version < "4.0"
 anyio==4.4.0 ; python_version >= "3.10" and python_version < "4.0"
 attrs==23.2.0 ; python_version >= "3.10" and python_version < "4.0"
+cachetools==5.4.0 ; python_version >= "3.10" and python_version < "4.0"
 certifi==2024.7.4 ; python_version >= "3.10" and python_version < "4.0"
 cffi==1.16.0 ; os_name == "nt" and implementation_name != "pypy" and python_version >= "3.10" and python_version < "4.0"
 charset-normalizer==3.3.2 ; python_version >= "3.10" and python_version < "4.0"

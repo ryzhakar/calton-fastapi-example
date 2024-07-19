@@ -15,6 +15,7 @@ pydantic-settings = "^2"
 colorlog = "^6.8.2"
 selenium = "^4.23.0"
 undetected-chromedriver = "^3.5.5"
+cachetools = "^5.4.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -23,6 +24,7 @@ flake8 = "^7.1.0"
 mypy = "^1.10.1"
 devtools = "^0.12.2"
 pandas-stubs = "^2.2.2.240603"
+types-cachetools = "^5.4.0.20240717"
 
 [build-system]
 requires = ["poetry-core"]

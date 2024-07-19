@@ -1,8 +1,10 @@
+from collections.abc import MutableMapping
 from datetime import datetime
 from datetime import timezone
 from decimal import Decimal
 
 import undetected_chromedriver as uc  # type: ignore
+from cachetools import TTLCache
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.webdriver import WebDriver
@@ -23,6 +25,8 @@ _DEFAULT_RATING_FLOAT = '3.0'
 _DEFAULT_RATING_PERCENTAGE = '60%'
 _PERCENTAGE_TO_RATING_STEP = 20
 _LOCATION_TIMEOUT = 10
+_CACHE_EXPIRATION = 3600
+_CACHE_SIZE = 1000
 
 
 class ButtonLoadModalStrategy(abstract.AbstractReviewScrapingStrategy):
@@ -225,13 +229,17 @@ class JustEatDataSource:
     strategy: abstract.AbstractReviewScrapingStrategy
     possible_strategies = (AutoScrollModalStrategy, ButtonLoadModalStrategy)
     url_template = 'https://www.just-eat.co.uk/{rbf}/reviews?openOnWeb=true'
+    buffer_cache: MutableMapping[str, list[schemas.Review]] = TTLCache(
+        maxsize=_CACHE_SIZE,
+        ttl=_CACHE_EXPIRATION,
+    )
 
     def __init__(self, restaurant_slug: str):
         """Set up basic configuration."""
+        self.restaurant_slug = restaurant_slug
         self.base_url = self.url_template.format(rbf=restaurant_slug)
         self.options = self._setup_options()
-        self.review_buffer: list[schemas.Review] = []
-        self.current_page = 0
+        self.review_buffer = self.buffer_cache.get(restaurant_slug, [])
 
     async def __aenter__(self):
         """Initialize driver-related resources."""
@@ -242,14 +250,23 @@ class JustEatDataSource:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Clean up driver-related resources."""
+        cache_size = len(self.buffer_cache.get(self.restaurant_slug, []))
+        buffer_size = len(self.review_buffer)
+        if cache_size < buffer_size:
+            self.buffer_cache[self.restaurant_slug] = self.review_buffer
         self.driver.quit()
 
     async def get_reviews(
         self,
         pagination: schemas.PaginationOptions,
     ) -> list[schemas.Review]:
-        """Get reviews with pagination."""
+        """Get reviews with pagination.
+
+        Will try to use cached values if possible.
+        """
         required_buffer_length = pagination.skip + pagination.limit
+        if len(self.review_buffer) >= required_buffer_length:
+            return self.review_buffer[pagination.skip:required_buffer_length]
         while len(self.review_buffer) < required_buffer_length:
             try:
                 await self._fill_buffer()
@@ -268,7 +285,6 @@ class JustEatDataSource:
             logger.warning('No new reviews parsed after loading')
             raise ex.NoMoreReviewsError('No new reviews loaded')
         self.review_buffer.extend(new_reviews)
-        self.current_page += 1
 
     def _setup_options(self):
         options = uc.ChromeOptions()
