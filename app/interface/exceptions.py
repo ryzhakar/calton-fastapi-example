@@ -8,3 +8,7 @@ class NoMoreReviewsError(ReviewScraperError):
 
 class UnsupportedPageStructureError(ReviewScraperError):
     """Raised when the page structure is not supported by any strategy."""
+
+
+class ScraperNotInitializedError(ReviewScraperError):
+    """Raised when the scraper is not initialized."""

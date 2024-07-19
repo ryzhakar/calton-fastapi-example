@@ -225,7 +225,6 @@ class AutoScrollModalStrategy(abstract.AbstractReviewScrapingStrategy):
 class JustEatDataSource:
     """Just Eat site scraper as a data source."""
 
-    driver: WebDriver
     strategy: abstract.AbstractReviewScrapingStrategy
     possible_strategies = (AutoScrollModalStrategy, ButtonLoadModalStrategy)
     url_template = 'https://www.just-eat.co.uk/{rbf}/reviews?openOnWeb=true'
@@ -240,21 +239,30 @@ class JustEatDataSource:
         self.base_url = self.url_template.format(rbf=restaurant_slug)
         self.options = self._setup_options()
         self.review_buffer = self.buffer_cache.get(restaurant_slug, [])
+        self.driver: WebDriver | None = None
 
     async def __aenter__(self):
-        """Initialize driver-related resources."""
-        self.driver = uc.Chrome(options=self.options)
-        await self._validate_url()
-        self.strategy = await self._determine_strategy()
+        """Do nothing except open the context."""
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Clean up driver-related resources."""
+        if self.driver is None:
+            return
         cache_size = len(self.buffer_cache.get(self.restaurant_slug, []))
         buffer_size = len(self.review_buffer)
         if cache_size < buffer_size:
             self.buffer_cache[self.restaurant_slug] = self.review_buffer
         self.driver.quit()
+
+    async def initialize_driver(self):
+        """Initialize the driver and validate the URL."""
+        if self.driver:
+            return
+        logger.info('Initializing selenium driver')
+        self.driver = uc.Chrome(options=self.options)
+        await self._validate_url()
+        self.strategy = await self._determine_strategy()
 
     async def get_reviews(
         self,
@@ -267,6 +275,7 @@ class JustEatDataSource:
         required_buffer_length = pagination.skip + pagination.limit
         if len(self.review_buffer) >= required_buffer_length:
             return self.review_buffer[pagination.skip:required_buffer_length]
+        await self.initialize_driver()
         while len(self.review_buffer) < required_buffer_length:
             try:
                 await self._fill_buffer()
@@ -279,6 +288,8 @@ class JustEatDataSource:
 
     @humanize_with_pauses(pre=1)
     async def _fill_buffer(self):
+        if self.driver is None:
+            raise ex.ScraperNotInitializedError('Driver not initialized')
         await self.strategy.load_more_reviews(self.driver)
         new_reviews = self.strategy.parse_reviews(self.driver)
         if not new_reviews:
@@ -292,6 +303,8 @@ class JustEatDataSource:
         return options
 
     async def _validate_url(self):
+        if self.driver is None:
+            raise ex.ScraperNotInitializedError('Driver not initialized')
         self.driver.get(self.base_url)
 
     async def _determine_strategy(
@@ -303,6 +316,8 @@ class JustEatDataSource:
         raise ex.UnsupportedPageStructureError('Unsupported page structure')
 
     async def _try_strategy(self, element_locator: tuple[str, str]) -> bool:
+        if self.driver is None:
+            raise ex.ScraperNotInitializedError('Driver not initialized')
         try:
             self.driver.find_element(*element_locator)
         except NoSuchElementException:
