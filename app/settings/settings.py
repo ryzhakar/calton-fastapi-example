@@ -11,9 +11,10 @@ from app.settings.logging_config import construct_logging_config
 
 class Settings(BaseSettings):
     """Contains various application settings."""
-    app_name: str = Field(default='app')
-    app_host: str = Field(default='0.0.0.0')  # noqa: S104
-    app_port: int = Field(default=8000)  # noqa: WPS432
+    app_name: str = Field(default='calton')
+
+    selenium_host: str = Field(default='selenium-chrome')
+    selenium_port: int = Field(default=4444)  # noqa: WPS432
 
     reviews_xlsx_path: str = Field(default='reviews.xlsx')
 

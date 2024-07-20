@@ -45,7 +45,7 @@ def construct_logging_config(
                 'level': level,
                 'propagate': False,
             },
-            'app': {
+            app_name: {
                 'handlers': ['default'],
                 'level': level,
                 'propagate': False,
