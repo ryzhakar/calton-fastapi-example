@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "calton-fastapi-example"
-version = "0.1.0"
+version = "0.2.0"
 description = "A simple API prototype."
 authors = ["Arthur Ryzhak <ryzhakar@gmail.com>"]
 readme = "README.md"
