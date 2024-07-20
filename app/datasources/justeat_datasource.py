@@ -3,12 +3,12 @@ from datetime import datetime
 from datetime import timezone
 from decimal import Decimal
 
-import undetected_chromedriver as uc  # type: ignore
 from cachetools import TTLCache
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.chrome.webdriver import WebDriver
+from selenium.webdriver import Remote
 from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as e_cond
 from selenium.webdriver.support.ui import WebDriverWait
@@ -16,15 +16,20 @@ from selenium.webdriver.support.ui import WebDriverWait
 from app.datasources.scraping_utils import humanize_with_pauses
 from app.datasources.scraping_utils import sleep_with_jitter
 from app.initializers.logger import get_logger
+from app.initializers.selenium import DRIVER_POOL
 from app.interface import abstract
 from app.interface import exceptions as ex
 from app.interface import schemas
-logger = get_logger('app')
+from app.settings import get_settings
+
+settings = get_settings()
+logger = get_logger()
 
 _DEFAULT_RATING_FLOAT = '3.0'
 _DEFAULT_RATING_PERCENTAGE = '60%'
 _PERCENTAGE_TO_RATING_STEP = 20
 _LOCATION_TIMEOUT = 10
+_PAGE_LOAD_TIMEOUT = 30
 _CACHE_EXPIRATION = 3600
 _CACHE_SIZE = 1000
 
@@ -202,7 +207,7 @@ class AutoScrollModalStrategy(abstract.AbstractReviewScrapingStrategy):
             By.CSS_SELECTOR, "b[data-qa='text']",
         ).text
         date_obj = datetime.strptime(
-            date_str, '%A %d %B %Y',
+            date_str, '%A, %d %B %Y',
         ).replace(tzinfo=timezone.utc)
         return name, date_obj
 
@@ -233,34 +238,39 @@ class JustEatDataSource:
         ttl=_CACHE_EXPIRATION,
     )
 
-    def __init__(self, restaurant_slug: str):
+    def __init__(
+        self,
+        restaurant_slug: str,
+    ):
         """Set up basic configuration."""
         self.restaurant_slug = restaurant_slug
         self.base_url = self.url_template.format(rbf=restaurant_slug)
-        self.options = self._setup_options()
         self.review_buffer = self.buffer_cache.get(restaurant_slug, [])
-        self.driver: WebDriver | None = None
+        self.driver_manager = DRIVER_POOL.get_driver()
+        self.driver: Remote | None = None
 
     async def __aenter__(self):
         """Do nothing except open the context."""
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Clean up driver-related resources."""
-        if self.driver is None:
-            return
+        """Store the cache, release the driver and reset page state."""
         cache_size = len(self.buffer_cache.get(self.restaurant_slug, []))
         buffer_size = len(self.review_buffer)
         if cache_size < buffer_size:
             self.buffer_cache[self.restaurant_slug] = self.review_buffer
-        self.driver.quit()
+        if self.driver is None:
+            return
+        self.driver.get('about:blank')
+        self.driver = None
+        await self.driver_manager.__aexit__(exc_type, exc_val, exc_tb)
 
     async def initialize_driver(self):
-        """Initialize the driver and validate the URL."""
-        if self.driver:
-            return
-        logger.info('Initializing selenium driver')
-        self.driver = uc.Chrome(options=self.options)
+        """Acquire a driver for the scraper."""
+        self.driver = await self.driver_manager.__aenter__()  # noqa: WPS609
+
+    async def load_page(self):
+        """Load the page and determine the parsing strategy."""
         await self._validate_url()
         self.strategy = await self._determine_strategy()
 
@@ -276,6 +286,7 @@ class JustEatDataSource:
         if len(self.review_buffer) >= required_buffer_length:
             return self.review_buffer[pagination.skip:required_buffer_length]
         await self.initialize_driver()
+        await self.load_page()
         while len(self.review_buffer) < required_buffer_length:
             try:
                 await self._fill_buffer()
@@ -297,22 +308,23 @@ class JustEatDataSource:
             raise ex.NoMoreReviewsError('No new reviews loaded')
         self.review_buffer.extend(new_reviews)
 
-    def _setup_options(self):
-        options = uc.ChromeOptions()
-        options.add_argument('--headless')
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
-        return options
-
     async def _validate_url(self):
         if self.driver is None:
             raise ex.ScraperNotInitializedError('Driver not initialized')
-        self.driver.get(self.base_url)
+        page = self.driver.get(self.base_url)
+        try:
+            WebDriverWait(self.driver, _PAGE_LOAD_TIMEOUT).until(
+                e_cond.presence_of_element_located((By.TAG_NAME, 'body')),
+            )
+        except TimeoutException:
+            logger.error('Page failed to load: %s', str(page))
+            raise
 
     async def _determine_strategy(
         self,
     ) -> abstract.AbstractReviewScrapingStrategy:
         for strategy_builder in self.possible_strategies:
+            logger.debug('Trying strategy %s', strategy_builder.__name__)
             if await self._try_strategy(strategy_builder.modal_locator):
                 return strategy_builder()
         raise ex.UnsupportedPageStructureError('Unsupported page structure')

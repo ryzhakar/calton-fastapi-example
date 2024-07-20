@@ -1,5 +1,6 @@
 import itertools
 from collections.abc import Callable
+from collections.abc import Coroutine
 from collections.abc import Iterable
 from contextlib import asynccontextmanager
 from typing import Any
@@ -12,7 +13,7 @@ from app.initializers.logger import get_logger
 from app.settings import get_settings
 
 settings = get_settings()
-logger = get_logger('app')
+logger = get_logger()
 
 _ENDPOINT_TABBING: str = '\n\t\t\t\t'
 
@@ -63,16 +64,16 @@ def list_endpoint_names(
 
 def construct_lifespan(
     *,
-    pre: Iterable[Callable],
-    post: Iterable[Callable],
+    pre: Iterable[Callable[..., Coroutine]],
+    post: Iterable[Callable[..., Coroutine]],
 ) -> Lifespan:
     """Constructs a lifespan context manager for FastAPI."""
     @asynccontextmanager
     async def lifespan_context(_app: FastAPI):  # noqa: WPS430
         """A lifespan context manager for FastAPI."""
         for start_call in pre:
-            start_call()
+            await start_call()
         yield
         for finish_call in post:
-            finish_call()
+            await finish_call()
     return lifespan_context

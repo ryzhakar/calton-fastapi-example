@@ -1,0 +1,22 @@
+---
+services:
+    selenium-chrome:
+        platform: linux/amd64
+        image: selenium/standalone-chrome:124.0-chromedriver-124.0-grid-4.20.0-20240505
+        shm_size: 8gb
+        environment:
+          - SE_VNC_NO_PASSWORD=1
+          - SE_NODE_MAX_SESSIONS=1
+          - SE_NODE_OVERRIDE_MAX_SESSIONS=true
+          - SE_NODE_SESSION_TIMEOUT=300
+
+    app:
+        build: .
+        volumes:
+          - .:/app
+        depends_on:
+          - selenium-chrome
+        env_file:
+          - .env
+        ports:
+          - 8000:8000

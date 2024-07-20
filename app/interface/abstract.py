@@ -1,7 +1,7 @@
 from abc import ABC
 from abc import abstractmethod
 
-from selenium.webdriver.chrome.webdriver import WebDriver
+from selenium.webdriver.remote.webdriver import WebDriver
 
 from app.interface import schemas
 

@@ -1,6 +1,9 @@
 import asyncio
 import random
 
+from app.initializers.logger import get_logger
+logger = get_logger()
+
 
 async def sleep_with_jitter(
     seconds: int,
@@ -23,12 +26,22 @@ def humanize_with_pauses(
     def decorator(func):
         async def wrapper(*args, **kwargs):
             if pre:
+                logger.debug(
+                    'function %s sleeping for %s seconds before execution',
+                    func.__name__,
+                    pre,
+                )
                 await sleep_with_jitter(
                     pre,
                     distribution_bounding_box=distribution_bounding_box,
                 )
             execution_result = await func(*args, **kwargs)
             if post:
+                logger.debug(
+                    'function %s sleeping for %s seconds after execution',
+                    func.__name__,
+                    post,
+                )
                 await sleep_with_jitter(
                     post,
                     distribution_bounding_box=distribution_bounding_box,
