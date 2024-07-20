@@ -9,13 +9,20 @@ services:
           - SE_NODE_MAX_SESSIONS=1
           - SE_NODE_OVERRIDE_MAX_SESSIONS=true
           - SE_NODE_SESSION_TIMEOUT=300
+        healthcheck:
+            test: [CMD, curl, -f, http://localhost:4444/wd/hub/status]
+            interval: 10s
+            timeout: 5s
+            retries: 3
+            start_period: 30s
 
     app:
         build: .
         volumes:
           - .:/app
         depends_on:
-          - selenium-chrome
+            selenium-chrome:
+                condition: service_healthy
         env_file:
           - .env
         ports:
